@@ -5,6 +5,12 @@ measures the longest common token run with the true continuation.
 
 Usage: python -m src.memorization --model outputs/<run>/model
 """
+import sys
+from pathlib import Path
+
+if __package__ in (None, ""):  # allow `python src/x.py` as well as `python -m src.x`
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 import argparse
 import json
 from difflib import SequenceMatcher

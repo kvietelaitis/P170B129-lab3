@@ -5,6 +5,12 @@ train and test (no train/test overlap).
 
 Usage: python -m src.prepare_data
 """
+import sys
+from pathlib import Path
+
+if __package__ in (None, ""):  # allow `python src/x.py` as well as `python -m src.x`
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 import hashlib
 import json
 import re

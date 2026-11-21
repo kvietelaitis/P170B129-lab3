@@ -26,6 +26,8 @@ def set_seed(seed: int) -> None:
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
     os.environ["PYTHONHASHSEED"] = str(seed)
     from transformers import set_seed as hf_set_seed
     hf_set_seed(seed)
@@ -34,9 +36,15 @@ def set_seed(seed: int) -> None:
 def get_device() -> torch.device:
     if torch.cuda.is_available():
         return torch.device("cuda")
-    if torch.backends.mps.is_available():
-        return torch.device("mps")
+    print("WARNING: CUDA not available, running on CPU (slow).")
     return torch.device("cpu")
+
+
+def mixed_precision() -> dict:
+    """Trainer flags: bf16 on Ampere+ GPUs, fp16 on older ones, none on CPU."""
+    if not torch.cuda.is_available():
+        return {}
+    return {"bf16": True} if torch.cuda.is_bf16_supported() else {"fp16": True}
 
 
 def env_info() -> dict:
@@ -50,6 +58,8 @@ def env_info() -> dict:
         "datasets": datasets.__version__,
         "peft": peft.__version__,
         "device": str(get_device()),
+        "cuda": torch.version.cuda,
+        "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
     }
 
 

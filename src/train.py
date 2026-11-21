@@ -6,6 +6,12 @@ Usage:
   python -m src.train --fraction 0.25 --run-name frac25
   python -m src.train --model gpt2                     # extra experiment
 """
+import sys
+from pathlib import Path
+
+if __package__ in (None, ""):  # allow `python src/x.py` as well as `python -m src.x`
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 import argparse
 import copy
 import json
@@ -16,7 +22,8 @@ from transformers import (AutoModelForCausalLM, Trainer, TrainingArguments,
                           default_data_collator)
 
 from src.tokenize_data import get_tokenizer, pack
-from src.utils import DATA_DIR, OUT_DIR, load_config, save_run_metadata, set_seed
+from src.utils import (DATA_DIR, OUT_DIR, load_config, mixed_precision,
+                       save_run_metadata, set_seed)
 
 
 def main():
@@ -74,6 +81,8 @@ def main():
         load_best_model_at_end=True, metric_for_best_model="eval_loss",
         seed=cfg["seed"], data_seed=cfg["seed"],
         report_to="none",
+        dataloader_num_workers=2,
+        **mixed_precision(),              # bf16/fp16 on CUDA
     )
     trainer = Trainer(model=model, args=targs, train_dataset=train_blocks,
                       eval_dataset=val_blocks, data_collator=default_data_collator)

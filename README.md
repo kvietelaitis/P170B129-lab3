@@ -18,7 +18,10 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Runs on Apple Silicon GPU (MPS), CUDA, or CPU, whichever is available.
+Runs on an NVIDIA GPU (CUDA), using bf16/fp16 mixed precision for training; falls back to CPU.
+Check the GPU is visible: `python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"`.
+
+Run every command **from the project root** (`~/P170B129-lab3`), either as a module (`python -m src.train`, with a dot and no `.py`) or as a script (`python src/train.py`).
 All settings live in `config.yaml`. Each training run saves `config_used.yaml`, `env.json`
 (library versions) and `log_history.json` to `outputs/<run>/`.
 

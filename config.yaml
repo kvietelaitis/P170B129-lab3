@@ -26,8 +26,8 @@ train:
   train_fraction: 1.0        # 0.25 / 0.5 / 1.0 for task 16
   epochs: 3
   lr: 5.0e-5
-  batch_size: 8
-  grad_accum: 2
+  batch_size: 16             # effective batch = batch_size * grad_accum
+  grad_accum: 1
   weight_decay: 0.01
   warmup_ratio: 0.05
   eval_steps: 200
