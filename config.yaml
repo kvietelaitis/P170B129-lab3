@@ -1,0 +1,49 @@
+# Central experiment config. Every script reads this file, and a copy is
+# saved next to every run so the experiment can be reproduced.
+seed: 42
+
+data:
+  # Domain corpus: IMDB movie reviews (Maas et al., 2011), freely available for research.
+  # Swap to e.g. "fancyzhx/ag_news" (news) and set text_field accordingly.
+  hf_name: stanfordnlp/imdb
+  hf_split: train            # pooled source; we make our own train/val/test split
+  text_field: text
+  max_docs: 12000            # keep runs short on a laptop; raise later
+  min_chars: 200
+  val_frac: 0.1
+  test_frac: 0.1
+  # General-domain text for task 12 (domain vs general comparison)
+  general_hf_name: Salesforce/wikitext
+  general_hf_config: wikitext-2-raw-v1
+  general_split: test
+
+model:
+  name: distilgpt2           # or "gpt2" (GPT2 Small) for the extra experiment
+  block_size: 256            # context length; keep identical across compared models
+
+train:
+  method: full               # full | lora
+  train_fraction: 1.0        # 0.25 / 0.5 / 1.0 for task 16
+  epochs: 3
+  lr: 5.0e-5
+  batch_size: 8
+  grad_accum: 2
+  weight_decay: 0.01
+  warmup_ratio: 0.05
+  eval_steps: 200
+  lora:
+    r: 8
+    alpha: 16
+    dropout: 0.05
+    target_modules: ["c_attn", "c_proj"]
+    lr: 2.0e-4
+
+generate:
+  max_new_tokens: 80
+  prompts:
+    - "This movie was"
+    - "I went to see this film because"
+    - "The acting in this film"
+    - "The weather today is"     # out-of-domain control prompt
+  temperatures: [0.7, 1.0, 1.3]
+  top_ks: [0, 10, 50]          # 0 = disabled
