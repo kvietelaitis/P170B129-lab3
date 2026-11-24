@@ -26,6 +26,24 @@ from src.utils import (DATA_DIR, OUT_DIR, load_config, mixed_precision,
                        save_run_metadata, set_seed)
 
 
+def check_inputs(model, tok, train_blocks, val_blocks, block_size):
+    """Catch the usual causes of CUDA 'device-side assert' before training starts."""
+    vocab = model.get_input_embeddings().num_embeddings
+    max_pos = model.config.n_positions
+    print(f"model={model.name_or_path} vocab={vocab} n_positions={max_pos} "
+          f"tokenizer_len={len(tok)} block_size={block_size} "
+          f"train_blocks={len(train_blocks)} val_blocks={len(val_blocks)}")
+    assert block_size <= max_pos, f"block_size {block_size} > model context {max_pos}"
+    assert len(train_blocks) > 0 and len(val_blocks) > 0, "empty dataset - rerun prepare_data"
+    for name, blocks in [("train", train_blocks), ("validation", val_blocks)]:
+        for col in ("input_ids", "labels"):
+            hi = max(max(row) for row in blocks[col])
+            lo = min(min(row) for row in blocks[col])
+            assert lo >= 0 and hi < vocab, f"{name}.{col} ids out of range [{lo}, {hi}], vocab={vocab}"
+        lens = {len(r) for r in blocks["input_ids"]}
+        assert lens == {block_size}, f"{name} blocks have lengths {lens}, expected {block_size}"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--method", choices=["full", "lora"])
@@ -56,6 +74,7 @@ def main():
     train_blocks, val_blocks = pack(train_ds, tok, bs), pack(ds["validation"], tok, bs)
 
     model = AutoModelForCausalLM.from_pretrained(name)
+    check_inputs(model, tok, train_blocks, val_blocks, bs)
     lr = t["lr"]
     if t["method"] == "lora":
         from peft import LoraConfig, get_peft_model
