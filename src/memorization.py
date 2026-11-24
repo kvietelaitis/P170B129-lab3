@@ -20,6 +20,7 @@ from difflib import SequenceMatcher
 
 import torch
 from datasets import load_from_disk
+from tqdm import tqdm
 from transformers import AutoModelForCausalLM
 
 from src.tokenize_data import get_tokenizer
@@ -33,6 +34,7 @@ def main():
     ap.add_argument("--prefix-tokens", type=int, default=32)
     ap.add_argument("--gen-tokens", type=int, default=50)
     ap.add_argument("--split", default="train", choices=["train", "test"])
+    ap.add_argument("--batch-size", type=int, default=32)
     args = ap.parse_args()
 
     cfg = load_config()
@@ -43,20 +45,29 @@ def main():
     docs = docs.select(range(min(args.n, len(docs))))
     need = args.prefix_tokens + args.gen_tokens
 
-    results = []
+    print(f"device={model.device} model={args.model} split={args.split}", flush=True)
+
+    # Every prefix is exactly prefix_tokens long, so they batch without padding.
+    pairs = []
     for text in docs["text"]:
         ids = tok(text, truncation=True, max_length=need)["input_ids"]
-        if len(ids) < need:
-            continue
-        prefix, truth = ids[:args.prefix_tokens], ids[args.prefix_tokens:args.prefix_tokens + args.gen_tokens]
+        if len(ids) == need:
+            pairs.append((ids[:args.prefix_tokens], ids[args.prefix_tokens:]))
+
+    results = []
+    for i in tqdm(range(0, len(pairs), args.batch_size), desc="memorization"):
+        batch = pairs[i:i + args.batch_size]
+        inp = torch.tensor([p for p, _ in batch], device=model.device)
         with torch.no_grad():
-            inp = torch.tensor([prefix], device=model.device)
             out = model.generate(inp, attention_mask=torch.ones_like(inp), do_sample=False,
                                  max_new_tokens=args.gen_tokens, pad_token_id=tok.eos_token_id)
-        gen = out[0][len(prefix):].tolist()
-        m = SequenceMatcher(None, gen, truth).find_longest_match(0, len(gen), 0, len(truth))
-        results.append({"longest_match_tokens": m.size, "prefix": tok.decode(prefix),
-                        "generated": tok.decode(gen), "truth": tok.decode(truth)})
+        for (prefix, truth), row in zip(batch, out[:, args.prefix_tokens:].tolist()):
+            gen = row
+            if tok.eos_token_id in gen:                 # cut at end-of-text, like single generation
+                gen = gen[:gen.index(tok.eos_token_id)]
+            m = SequenceMatcher(None, gen, truth).find_longest_match(0, len(gen), 0, len(truth))
+            results.append({"longest_match_tokens": m.size, "prefix": tok.decode(prefix),
+                            "generated": tok.decode(gen), "truth": tok.decode(truth)})
 
     results.sort(key=lambda r: -r["longest_match_tokens"])
     summary = {"model": args.model, "split": args.split, "checked": len(results),
