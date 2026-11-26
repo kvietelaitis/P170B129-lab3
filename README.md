@@ -50,8 +50,6 @@ All settings live in `config.yaml`. Each training run saves `config_used.yaml`, 
 
 Results are appended to `outputs/eval_results.jsonl` and `outputs/generations.jsonl`.
 
-For task 13 (where validation loss starts rising), train with more epochs, e.g. `--epochs 8`, and plot `log_history.json`.
-
 **Fair comparison:** all models use the base tokenizer, the same test blocks and the same `block_size`. Use only the validation set to choose hyperparameters. The test set is for the final numbers.
 
 ## Metrics
